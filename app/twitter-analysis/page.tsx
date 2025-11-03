@@ -35,7 +35,6 @@ export default function TwitterAnalysisPage() {
         throw new Error(data.error || "Failed to analyze Twitter account")
       }
 
-      // Store the results in localStorage
       const userData = localStorage.getItem("user")
       if (userData) {
         const user = JSON.parse(userData)
@@ -43,6 +42,8 @@ export default function TwitterAnalysisPage() {
         user.lastAssessment = new Date().toISOString()
         user.assessmentSource = "twitter"
         user.twitterHandle = twitterHandle.replace("@", "")
+        user.isDemo = data.isDemo || false
+        user.tweetCount = data.tweetCount
         localStorage.setItem("user", JSON.stringify(user))
       }
 
@@ -105,9 +106,35 @@ export default function TwitterAnalysisPage() {
 
                 {error && (
                   <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-red-600 text-sm font-semibold mb-2">Analysis Error</p>
                     <p className="text-red-600 text-sm">{error}</p>
+                    {error.includes("rate limit") && (
+                      <div className="mt-3 pt-3 border-t border-red-200">
+                        <p className="text-sm text-red-700 font-medium mb-2">Alternative options:</p>
+                        <div className="space-y-1">
+                          <Link href="/questionnaire">
+                            <Button variant="outline" size="sm" className="w-full bg-white">
+                              Take Questionnaire Instead
+                            </Button>
+                          </Link>
+                          <Link href="/image-analysis">
+                            <Button variant="outline" size="sm" className="w-full bg-white">
+                              Try Image Analysis
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
+
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-amber-900 mb-2">Note:</h4>
+                  <p className="text-sm text-amber-800">
+                    If Twitter API rate limits are reached, the system will provide simulated demo results to
+                    demonstrate the personality analysis feature.
+                  </p>
+                </div>
 
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <h4 className="font-semibold text-blue-900 mb-2">How it works:</h4>
