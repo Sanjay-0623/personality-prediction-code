@@ -6,7 +6,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { Brain, Download, Share2, BarChart3, Twitter } from "lucide-react"
+import { Brain, Download, Share2, BarChart3, Twitter, Check } from "lucide-react"
 
 const traitDescriptions = {
   openness: {
@@ -43,6 +43,7 @@ const traitDescriptions = {
 
 export default function ResultsPage() {
   const [user, setUser] = useState<any>(null)
+  const [shareSuccess, setShareSuccess] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -61,6 +62,103 @@ export default function ResultsPage() {
     setUser(parsedUser)
   }, [router])
 
+  const handleDownloadReport = () => {
+    if (!user || !user.personalityScores) return
+
+    const scores = user.personalityScores
+    const isTwitterAnalysis = user.assessmentSource === "twitter"
+
+    // Generate report content
+    let reportContent = `PERSONALITY ANALYSIS REPORT\n`
+    reportContent += `Generated: ${new Date().toLocaleDateString()}\n`
+    reportContent += `User: ${user.username}\n`
+
+    if (isTwitterAnalysis) {
+      reportContent += `Analysis Type: Twitter Analysis (@${user.twitterHandle})\n`
+    } else {
+      reportContent += `Analysis Type: Questionnaire Assessment\n`
+    }
+
+    reportContent += `\n${"=".repeat(50)}\n\n`
+    reportContent += `BIG FIVE PERSONALITY TRAITS\n\n`
+
+    Object.entries(scores).forEach(([trait, score]) => {
+      const traitInfo = traitDescriptions[trait as keyof typeof traitDescriptions]
+      const percentage = Math.round((score as number) * 100)
+      const isHigh = (score as number) > 0.6
+
+      reportContent += `${traitInfo.name}: ${percentage}%\n`
+      reportContent += `${isHigh ? traitInfo.high : traitInfo.low}\n\n`
+    })
+
+    reportContent += `${"=".repeat(50)}\n\n`
+    reportContent += `SUMMARY\n\n`
+    reportContent += `Based on ${isTwitterAnalysis ? "the Twitter analysis" : "your responses"}, you show strong tendencies toward `
+
+    const highTraits = Object.entries(scores)
+      .filter(([_, score]) => (score as number) > 0.7)
+      .map(([trait]) => traitDescriptions[trait as keyof typeof traitDescriptions].name)
+
+    reportContent += highTraits.join(" and ") + ".\n\n"
+
+    reportContent += `RECOMMENDATIONS\n\n`
+    reportContent += `- Consider careers that align with your personality strengths\n`
+    reportContent += `- Use your natural traits to improve relationships and communication\n`
+    reportContent += `- Work on areas where you scored lower if you want to develop those skills\n`
+    reportContent += `- Remember that all personality traits have their strengths and challenges\n`
+
+    // Create and download file
+    const blob = new Blob([reportContent], { type: "text/plain" })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `personality-report-${new Date().toISOString().split("T")[0]}.txt`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
+  }
+
+  const handleShareResults = async () => {
+    if (!user || !user.personalityScores) return
+
+    const scores = user.personalityScores
+    const isTwitterAnalysis = user.assessmentSource === "twitter"
+
+    const highTraits = Object.entries(scores)
+      .filter(([_, score]) => (score as number) > 0.7)
+      .map(([trait]) => traitDescriptions[trait as keyof typeof traitDescriptions].name)
+
+    const shareText = `I just completed my personality analysis! My top traits are: ${highTraits.join(", ")}. ${
+      isTwitterAnalysis ? `Analyzed via Twitter (@${user.twitterHandle})` : "Analyzed via questionnaire"
+    }`
+
+    // Try Web Share API first
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "My Personality Analysis Results",
+          text: shareText,
+          url: window.location.origin,
+        })
+        setShareSuccess(true)
+        setTimeout(() => setShareSuccess(false), 3000)
+      } catch (err) {
+        // User cancelled or error occurred
+        console.log("Share cancelled or failed")
+      }
+    } else {
+      // Fallback: Copy to clipboard
+      try {
+        await navigator.clipboard.writeText(shareText)
+        setShareSuccess(true)
+        setTimeout(() => setShareSuccess(false), 3000)
+      } catch (err) {
+        console.error("Failed to copy to clipboard:", err)
+      }
+    }
+  }
+
   if (!user) {
     return <div>Loading...</div>
   }
@@ -77,14 +175,28 @@ export default function ResultsPage() {
             <Brain className="h-8 w-8 text-blue-600" />
             <h1 className="text-2xl font-bold text-gray-900">PersonalityAI</h1>
           </Link>
-          <div className="space-x-2">
-            <Button variant="outline" size="sm">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleDownloadReport}>
               <Download className="h-4 w-4 mr-2" />
               Download Report
             </Button>
-            <Button variant="outline" size="sm">
-              <Share2 className="h-4 w-4 mr-2" />
-              Share Results
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleShareResults}
+              className={shareSuccess ? "bg-green-50 border-green-500" : ""}
+            >
+              {shareSuccess ? (
+                <>
+                  <Check className="h-4 w-4 mr-2 text-green-600" />
+                  <span className="text-green-600">Copied!</span>
+                </>
+              ) : (
+                <>
+                  <Share2 className="h-4 w-4 mr-2" />
+                  Share Results
+                </>
+              )}
             </Button>
           </div>
         </div>
