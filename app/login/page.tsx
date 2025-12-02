@@ -23,28 +23,28 @@ export default function LoginPage() {
     setError("")
     setLoading(true)
 
-    setTimeout(() => {
-      if (!email || !password) {
-        setError("Please enter both email and password")
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        setError(data.error || "Login failed")
         setLoading(false)
         return
       }
 
-      // Get stored users
-      const users = JSON.parse(localStorage.getItem("users") || "[]")
-
-      // Find user by email and password
-      const user = users.find((u: any) => u.email === email && u.password === password)
-
-      if (user) {
-        // Store complete user data (not dummy data)
-        localStorage.setItem("user", JSON.stringify(user))
-        router.push("/dashboard")
-      } else {
-        setError("Invalid email or password")
-        setLoading(false)
-      }
-    }, 1000)
+      // Store user data in localStorage for client-side access
+      localStorage.setItem("user", JSON.stringify(data.user))
+      router.push("/dashboard")
+    } catch (err) {
+      setError("An error occurred. Please try again.")
+      setLoading(false)
+    }
   }
 
   return (

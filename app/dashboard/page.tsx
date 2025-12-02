@@ -10,6 +10,8 @@ import { Brain, User, BarChart3, Settings, LogOut, Calendar, Target, Twitter, Im
 
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
+  const [personalityResults, setPersonalityResults] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const router = useRouter()
 
   useEffect(() => {
@@ -18,7 +20,24 @@ export default function DashboardPage() {
       router.push("/login")
       return
     }
-    setUser(JSON.parse(userData))
+    const parsedUser = JSON.parse(userData)
+    setUser(parsedUser)
+
+    const fetchResults = async () => {
+      try {
+        const response = await fetch(`/api/personality-results?userId=${parsedUser.id}`)
+        if (response.ok) {
+          const data = await response.json()
+          setPersonalityResults(data.results || [])
+        }
+      } catch (error) {
+        console.error("[v0] Error fetching personality results:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchResults()
   }, [router])
 
   const handleLogout = () => {
@@ -26,11 +45,12 @@ export default function DashboardPage() {
     router.push("/")
   }
 
-  if (!user) {
-    return <div>Loading...</div>
+  if (!user || loading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>
   }
 
-  const hasCompletedAssessment = user.personalityScores
+  const hasCompletedAssessment = personalityResults.length > 0
+  const latestResult = personalityResults[0]
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
@@ -42,7 +62,7 @@ export default function DashboardPage() {
             <h1 className="text-2xl font-bold text-gray-900">PersonalityAI</h1>
           </div>
           <div className="flex items-center space-x-4">
-            <span className="text-gray-600">Welcome, {user.name}</span>
+            <span className="text-gray-600">Welcome, {user.username}</span>
             <Link href="/profile">
               <Button variant="outline" size="sm">
                 <User className="h-4 w-4 mr-2" />
@@ -77,7 +97,9 @@ export default function DashboardPage() {
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-green-600 font-medium">Completed</span>
-                    <span className="text-sm text-gray-500">{new Date(user.lastAssessment).toLocaleDateString()}</span>
+                    <span className="text-sm text-gray-500">
+                      {new Date(latestResult.created_at).toLocaleDateString()}
+                    </span>
                   </div>
                   <Progress value={100} className="h-2" />
                   <Link href="/results">
@@ -116,11 +138,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Assessments</span>
-                  <span className="font-medium">{hasCompletedAssessment ? 1 : 0}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Profile Views</span>
-                  <span className="font-medium">12</span>
+                  <span className="font-medium">{personalityResults.length}</span>
                 </div>
               </div>
             </CardContent>
@@ -140,11 +158,11 @@ export default function DashboardPage() {
                   <>
                     <div className="text-sm">
                       <div className="font-medium">Assessment Completed</div>
-                      <div className="text-gray-500">{new Date(user.lastAssessment).toLocaleDateString()}</div>
+                      <div className="text-gray-500">{new Date(latestResult.created_at).toLocaleDateString()}</div>
                     </div>
                     <div className="text-sm">
-                      <div className="font-medium">Profile Updated</div>
-                      <div className="text-gray-500">{new Date(user.createdAt).toLocaleDateString()}</div>
+                      <div className="font-medium">Source: {latestResult.source_type}</div>
+                      <div className="text-gray-500">{latestResult.source_identifier || "N/A"}</div>
                     </div>
                   </>
                 ) : (
@@ -164,15 +182,41 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-5">
-                {Object.entries(user.personalityScores).map(([trait, score]) => (
-                  <div key={trait} className="text-center">
-                    <div className="text-sm font-medium text-gray-600 mb-2">
-                      {trait.charAt(0).toUpperCase() + trait.slice(1)}
-                    </div>
-                    <div className="text-2xl font-bold text-blue-600 mb-2">{Math.round((score as number) * 100)}%</div>
-                    <Progress value={(score as number) * 100} className="h-2" />
+                <div className="text-center">
+                  <div className="text-sm font-medium text-gray-600 mb-2">Openness</div>
+                  <div className="text-2xl font-bold text-blue-600 mb-2">
+                    {Math.round(latestResult.openness * 100)}%
                   </div>
-                ))}
+                  <Progress value={latestResult.openness * 100} className="h-2" />
+                </div>
+                <div className="text-center">
+                  <div className="text-sm font-medium text-gray-600 mb-2">Conscientiousness</div>
+                  <div className="text-2xl font-bold text-blue-600 mb-2">
+                    {Math.round(latestResult.conscientiousness * 100)}%
+                  </div>
+                  <Progress value={latestResult.conscientiousness * 100} className="h-2" />
+                </div>
+                <div className="text-center">
+                  <div className="text-sm font-medium text-gray-600 mb-2">Extraversion</div>
+                  <div className="text-2xl font-bold text-blue-600 mb-2">
+                    {Math.round(latestResult.extraversion * 100)}%
+                  </div>
+                  <Progress value={latestResult.extraversion * 100} className="h-2" />
+                </div>
+                <div className="text-center">
+                  <div className="text-sm font-medium text-gray-600 mb-2">Agreeableness</div>
+                  <div className="text-2xl font-bold text-blue-600 mb-2">
+                    {Math.round(latestResult.agreeableness * 100)}%
+                  </div>
+                  <Progress value={latestResult.agreeableness * 100} className="h-2" />
+                </div>
+                <div className="text-center">
+                  <div className="text-sm font-medium text-gray-600 mb-2">Neuroticism</div>
+                  <div className="text-2xl font-bold text-blue-600 mb-2">
+                    {Math.round(latestResult.neuroticism * 100)}%
+                  </div>
+                  <Progress value={latestResult.neuroticism * 100} className="h-2" />
+                </div>
               </div>
             </CardContent>
           </Card>

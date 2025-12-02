@@ -45,37 +45,29 @@ export default function RegisterPage() {
     setLoading(true)
 
     try {
-      // Simulate registration - in production, this would call an API
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+        }),
+      })
 
-      // Store user data in localStorage (demo purposes)
-      const users = JSON.parse(localStorage.getItem("users") || "[]")
+      const data = await response.json()
 
-      // Check if user already exists
-      if (users.some((u: any) => u.email === formData.email)) {
-        setError("Email already registered")
+      if (!response.ok) {
+        setError(data.error || "Registration failed")
         setLoading(false)
         return
       }
 
-      const newUser = {
-        id: Date.now().toString(),
-        username: formData.username,
-        name: formData.username, // Add name field for profile page
-        email: formData.email,
-        password: formData.password, // In production, this would be hashed
-        createdAt: new Date().toISOString(),
-        isAdmin: false,
-      }
-
-      users.push(newUser)
-      localStorage.setItem("users", JSON.stringify(users))
-      localStorage.setItem("user", JSON.stringify(newUser)) // Store to 'user' key instead of 'currentUser' for consistency
-
-      // Redirect to dashboard
+      // Store user data in localStorage for client-side access
+      localStorage.setItem("user", JSON.stringify(data.user))
       router.push("/dashboard")
     } catch (err) {
-      setError("Registration failed. Please try again.")
+      setError("An error occurred. Please try again.")
       setLoading(false)
     }
   }
